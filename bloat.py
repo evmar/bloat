@@ -41,12 +41,12 @@ def parse_nm(input):
     """
 
     # Match lines with size + symbol + optional filename.
-    sym_re = re.compile(r'^[0-9a-f]{8} ([0-9a-f]{8}) (.) ([^\t]+)(?:\t(.*):\d+)?$')
+    sym_re = re.compile(r'^[0-9a-f]+ ([0-9a-f]+) (.) ([^\t]+)(?:\t(.*):\d+)?$')
 
     # Match lines with addr but no size.
-    addr_re = re.compile(r'^[0-9a-f]{8} (.) ([^\t]+)(?:\t.*)?$')
+    addr_re = re.compile(r'^[0-9a-f]+ (.) ([^\t]+)(?:\t.*)?$')
     # Match lines that don't have an address at all -- typically external symbols.
-    noaddr_re = re.compile(r'^ {8} (.) (.*)$')
+    noaddr_re = re.compile(r'^ + (.) (.*)$')
 
     for line in input:
         line = line.rstrip()
