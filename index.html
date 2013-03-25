@@ -28,6 +28,11 @@ h2 {
   cursor: pointer;
   -webkit-user-select: none;
 }
+
+#legend {
+  width: 800px;
+  padding-top: 10px;
+}
 </style>
 
 <h1>binary size</h1>
@@ -35,6 +40,18 @@ h2 {
 <p>Click on a box to zoom in.  Click on the outermost box to zoom out.</p>
 
 <div id='map'></div>
+<div id='legend'>
+<div class='webtreemap-symbol-bss'>bss</div>
+<div class='webtreemap-symbol-bss webtreemap-aggregate'>bss aggregate</div>
+<div class='webtreemap-symbol-data'>data</div>
+<div class='webtreemap-symbol-data webtreemap-aggregate'>data aggregate</div>
+<div class='webtreemap-symbol-read-only_data'>read-only data</div>
+<div class='webtreemap-symbol-read-only_data webtreemap-aggregate'>read-only data aggregate</div>
+<div class='webtreemap-symbol-code'>code</div>
+<div class='webtreemap-symbol-code webtreemap-aggregate'>code aggregate</div>
+<div class='webtreemap-symbol-weak_symbol'>weak symbol</div>
+<div class='webtreemap-symbol-weak_symbol webtreemap-aggregate'>weak symbol aggregate</div>
+</div>
 
 <script src='webtreemap/webtreemap.js'></script>
 
