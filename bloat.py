@@ -28,6 +28,7 @@ def symbol_type_to_human(type):
         'd': 'data',
         'r': 'read-only data',
         't': 'code',
+        'u': 'weak symbol', # Unique global.
         'w': 'weak symbol',
         'v': 'weak symbol'
         }[type]
@@ -57,7 +58,7 @@ def parse_nm(input):
             size, type, sym = match.groups()[0:3]
             size = int(size, 16)
             type = type.lower()
-            if type == 'v':
+            if type in ['u', 'v']:
                 type = 'w'  # just call them all weak
             if type == 'b':
                 continue  # skip all BSS for now
@@ -78,13 +79,55 @@ def parse_nm(input):
 
         print >>sys.stderr, 'unparsed:', repr(line)
 
+def demangle(ident, cppfilt):
+    if cppfilt and ident.startswith('_Z'):
+        # Demangle names when possible. Mangled names all start with _Z.
+        ident = subprocess.check_output([cppfilt, ident]).strip()
+    return ident
 
-def parse_cpp_name(name):
+
+class Suffix:
+    def __init__(self, suffix, replacement):
+        self.pattern = '^(.*)' + suffix + '(.*)$'
+        self.re = re.compile(self.pattern)
+        self.replacement = replacement
+
+class SuffixCleanup:
+    """Pre-compile suffix regular expressions."""
+    def __init__(self):
+        self.suffixes = [
+            Suffix('\.part\.([0-9]+)',      'part'),
+            Suffix('\.constprop\.([0-9]+)', 'constprop'),
+            Suffix('\.isra\.([0-9]+)',      'isra'),
+        ]
+    def cleanup(self, ident, cppfilt):
+        """Cleanup identifiers that have suffixes preventing demangling,
+           and demangle if possible."""
+        to_append = []
+        for s in self.suffixes:
+            found = s.re.match(ident)
+            if not found:
+                continue
+            to_append += [' [' + s.replacement + '.' + found.group(2) + ']']
+            ident = found.group(1) + found.group(3)
+        if len(to_append) > 0:
+            # Only try to demangle if there were suffixes.
+            ident = demangle(ident, cppfilt)
+        for s in to_append:
+            ident += s
+        return ident
+
+suffix_cleanup = SuffixCleanup()
+
+def parse_cpp_name(name, cppfilt):
+    name = suffix_cleanup.cleanup(name, cppfilt)
+
     # Turn prefixes into suffixes so namespacing works.
     prefixes = [
         ['bool ',                         ''],
         ['construction vtable for ',      ' [construction vtable]'],
         ['global constructors keyed to ', ' [global constructors]'],
+        ['guard variable for ',           ' [guard variable]'],
         ['int ',                          ''],
         ['non-virtual thunk to ',         ' [non-virtual thunk]'],
         ['typeinfo for ',                 ' [typeinfo]'],
@@ -92,6 +135,7 @@ def parse_cpp_name(name):
         ['virtual thunk to ',             ' [virtual thunk]'],
         ['void ',                         ''],
         ['vtable for ',                   ' [vtable]'],
+        ['VTT for ',                      ' [VTT]'],
     ]
     for prefix, replacement in prefixes:
         if name.startswith(prefix):
@@ -157,7 +201,7 @@ def treeify_syms(symbols, strip_prefix=None, cppfilt=None):
                 path = path[1:]
             path = ['[path]'] + path.split('/')
 
-        parts = parse_cpp_name(sym)
+        parts = parse_cpp_name(sym, cppfilt)
         if len(parts) == 1:
           if path:
             # No namespaces, group with path.
@@ -173,11 +217,7 @@ def treeify_syms(symbols, strip_prefix=None, cppfilt=None):
             for prefix, group in regroups:
                 if parts[0].startswith(prefix):
                     parts[0] = parts[0][len(prefix):]
-                    if cppfilt and parts[0].startswith('_Z'):
-                        # Demangle names when possible.
-                        # Mangled names all start with _Z.
-                        parts[0] = subprocess.check_output(
-                            [cppfilt, parts[0]]).strip()
+                    parts[0] = demangle(parts[0], cppfilt)
                     new_prefix += [group]
                     break
             parts = new_prefix + parts
